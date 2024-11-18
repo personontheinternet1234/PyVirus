@@ -1,4 +1,4 @@
-# Full Credits to LimerBoy
+# Full Credits to LimerBoy - I used his chrome dump code for this feature, very cool
 import os
 import re
 import sys
